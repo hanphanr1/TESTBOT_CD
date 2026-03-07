@@ -220,9 +220,7 @@ def init_db():
             FOREIGN KEY (category_id) REFERENCES categories(id)
         )
         """)
-        except Exception:
-            pass
-        
+
         cur.execute("""
         CREATE TABLE IF NOT EXISTS orders (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -382,7 +380,38 @@ def set_config(key: str, value: str):
         db.commit()
 
 # ================= CATEGORY FUNCTIONS =================
+def ensure_columns():
+    """Đảm bảo các cột cần thiết tồn tại trong database"""
+    with get_db() as db:
+        cur = db.cursor()
+        try:
+            cur.execute("ALTER TABLE categories ADD COLUMN sort_order INTEGER DEFAULT 0")
+        except:
+            pass
+        try:
+            cur.execute("ALTER TABLE products ADD COLUMN contact_seller INTEGER DEFAULT 0")
+        except:
+            pass
+        try:
+            cur.execute("ALTER TABLE products ADD COLUMN sort_order INTEGER DEFAULT 0")
+        except:
+            pass
+        try:
+            cur.execute("ALTER TABLE orders ADD COLUMN message_id INTEGER")
+        except:
+            pass
+        try:
+            cur.execute("ALTER TABLE orders ADD COLUMN customer_name TEXT")
+        except:
+            pass
+        try:
+            cur.execute("ALTER TABLE orders ADD COLUMN quantity INTEGER DEFAULT 1")
+        except:
+            pass
+        db.commit()
+
 def get_categories():
+    ensure_columns()  # Đảm bảo cột tồn tại
     with get_db() as db:
         cur = db.cursor()
         cur.execute("""
@@ -437,6 +466,7 @@ def delete_category(category_id: int):
 
 # ================= PRODUCT FUNCTIONS =================
 def get_products(category_id: int = None, active_only: bool = True):
+    ensure_columns()  # Đảm bảo cột tồn tại
     with get_db() as db:
         cur = db.cursor()
         query = """
