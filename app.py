@@ -114,17 +114,73 @@ def get_db():
     finally:
         db.close()
 
-def init_db():
+def run_migrations():
+    """Chạy migration để thêm các cột mới vào database cũ"""
     with get_db() as db:
         cur = db.cursor()
-        
+
+        # Kiểm tra và lấy danh sách các bảng hiện có
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        existing_tables = [row[0] for row in cur.fetchall()]
+
+        # Migration cho categories
+        if 'categories' in existing_tables:
+            try:
+                cur.execute("ALTER TABLE categories ADD COLUMN sort_order INTEGER DEFAULT 0")
+                logger.info("✅ Migration: added sort_order column to categories table")
+            except Exception:
+                pass
+
+        # Migration cho products
+        if 'products' in existing_tables:
+            try:
+                cur.execute("ALTER TABLE products ADD COLUMN contact_seller INTEGER DEFAULT 0")
+                logger.info("✅ Migration: added contact_seller column to products table")
+            except Exception:
+                pass
+
+            try:
+                cur.execute("ALTER TABLE products ADD COLUMN sort_order INTEGER DEFAULT 0")
+                logger.info("✅ Migration: added sort_order column to products table")
+            except Exception:
+                pass
+
+        # Migration cho orders
+        if 'orders' in existing_tables:
+            try:
+                cur.execute("ALTER TABLE orders ADD COLUMN message_id INTEGER")
+                logger.info("✅ Migration: added message_id column to orders table")
+            except Exception:
+                pass
+
+            try:
+                cur.execute("ALTER TABLE orders ADD COLUMN customer_name TEXT")
+                logger.info("✅ Migration: added customer_name column to orders table")
+            except Exception:
+                pass
+
+            try:
+                cur.execute("ALTER TABLE orders ADD COLUMN quantity INTEGER DEFAULT 1")
+                logger.info("✅ Migration: added quantity column to orders table")
+            except Exception:
+                pass
+
+        db.commit()
+
+def init_db():
+    # Chạy migration trước
+    run_migrations()
+
+    with get_db() as db:
+        cur = db.cursor()
+
         cur.execute("""
         CREATE TABLE IF NOT EXISTS config (
             key TEXT PRIMARY KEY,
             value TEXT
         )
         """)
-        
+
         # Bảng lưu TẤT CẢ users đã /start bot
         cur.execute("""
         CREATE TABLE IF NOT EXISTS bot_users (
@@ -137,7 +193,7 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         """)
-        
+
         cur.execute("""
         CREATE TABLE IF NOT EXISTS categories (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -149,13 +205,7 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         """)
-        
-        try:
-            cur.execute("ALTER TABLE categories ADD COLUMN sort_order INTEGER DEFAULT 0")
-            logger.info("✅ Added sort_order column to categories table")
-        except Exception:
-            pass
-        
+
         cur.execute("""
         CREATE TABLE IF NOT EXISTS products (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -170,15 +220,6 @@ def init_db():
             FOREIGN KEY (category_id) REFERENCES categories(id)
         )
         """)
-        try:
-            cur.execute("ALTER TABLE products ADD COLUMN contact_seller INTEGER DEFAULT 0")
-            logger.info("✅ Added contact_seller column to products table")
-        except Exception:
-            pass
-        
-        try:
-            cur.execute("ALTER TABLE products ADD COLUMN sort_order INTEGER DEFAULT 0")
-            logger.info("✅ Added sort_order column to products table")
         except Exception:
             pass
         
@@ -2510,7 +2551,10 @@ async def api_restore_database(request: Request, auth: bool = Depends(require_ad
         # Write new database
         with open(DB_PATH, 'wb') as f:
             f.write(contents)
-        
+
+        # Run migrations on restored database
+        run_migrations()
+
         logger.info("Database restored successfully")
         return {"success": True, "message": "Database restored successfully. Please restart the bot."}
         
