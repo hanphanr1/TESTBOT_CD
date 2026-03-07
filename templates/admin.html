@@ -19,6 +19,26 @@
                 }
             }
         }
+
+        // Section Navigation - MUST be defined early
+        function showSection(sectionId) {
+            var sections = document.getElementsByClassName('section');
+            for (var i = 0; i < sections.length; i++) {
+                sections[i].style.display = 'none';
+            }
+            var section = document.getElementById(sectionId);
+            if (section) {
+                section.style.display = 'block';
+            }
+            var items = document.getElementsByClassName('sidebar-item');
+            for (var i = 0; i < items.length; i++) {
+                items[i].classList.remove('active');
+            }
+            var activeLink = document.querySelector('.sidebar-item[data-section="' + sectionId + '"]');
+            if (activeLink) {
+                activeLink.classList.add('active');
+            }
+        }
     </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -35,6 +55,7 @@
         .sidebar-item { transition: all 0.2s ease; }
         .sidebar-item:hover { background: rgba(255,255,255,0.1); }
         .sidebar-item.active { background: rgba(255,255,255,0.2); border-left: 3px solid #fff; }
+        .hidden { display: none !important; }
         .pulse-dot { animation: pulse 2s infinite; }
         @keyframes pulse {
             0%, 100% { opacity: 1; }
@@ -57,50 +78,50 @@
             </div>
             
             <nav class="mt-6" id="mainNav">
-                <div class="sidebar-item active flex items-center gap-3 px-6 py-3 cursor-pointer" onclick="showSection('dashboard')" data-section="dashboard">
+                <button type="button" class="sidebar-item w-full text-left active flex items-center gap-3 px-6 py-3 cursor-pointer" onclick="showSection('dashboard')" data-section="dashboard">
                     <i class="fas fa-chart-pie w-5"></i>
                     <span>Dashboard</span>
-                </div>
-                <div class="sidebar-item flex items-center gap-3 px-6 py-3 cursor-pointer" onclick="showSection('categories')" data-section="categories">
+                </button>
+                <button type="button" class="sidebar-item w-full text-left flex items-center gap-3 px-6 py-3 cursor-pointer" onclick="showSection('categories')" data-section="categories">
                     <i class="fas fa-folder w-5"></i>
                     <span>Categories</span>
-                </div>
-                <div class="sidebar-item flex items-center gap-3 px-6 py-3 cursor-pointer" onclick="showSection('products')" data-section="products">
+                </button>
+                <button type="button" class="sidebar-item w-full text-left flex items-center gap-3 px-6 py-3 cursor-pointer" onclick="showSection('products')" data-section="products">
                     <i class="fas fa-box w-5"></i>
                     <span>Sản phẩm</span>
-                </div>
-                <div class="sidebar-item flex items-center gap-3 px-6 py-3 cursor-pointer" onclick="showSection('stock')" data-section="stock">
+                </button>
+                <button type="button" class="sidebar-item w-full text-left flex items-center gap-3 px-6 py-3 cursor-pointer" onclick="showSection('stock')" data-section="stock">
                     <i class="fas fa-warehouse w-5"></i>
                     <span>Kho hàng</span>
-                </div>
-                <div class="sidebar-item flex items-center gap-3 px-6 py-3 cursor-pointer" onclick="showSection('orders')" data-section="orders">
+                </button>
+                <button type="button" class="sidebar-item w-full text-left flex items-center gap-3 px-6 py-3 cursor-pointer" onclick="showSection('orders')" data-section="orders">
                     <i class="fas fa-shopping-cart w-5"></i>
                     <span>Đơn hàng</span>
-                </div>
-                <div class="sidebar-item flex items-center gap-3 px-6 py-3 cursor-pointer" onclick="showSection('bank')" data-section="bank">
+                </button>
+                <button type="button" class="sidebar-item w-full text-left flex items-center gap-3 px-6 py-3 cursor-pointer" onclick="showSection('bank')" data-section="bank">
                     <i class="fas fa-university w-5"></i>
                     <span>Cấu hình Bank</span>
-                </div>
-                <div class="sidebar-item flex items-center gap-3 px-6 py-3 cursor-pointer" onclick="showSection('autocheck')" data-section="autocheck">
+                </button>
+                <button type="button" class="sidebar-item w-full text-left flex items-center gap-3 px-6 py-3 cursor-pointer" onclick="showSection('autocheck')" data-section="autocheck">
                     <i class="fas fa-sync-alt w-5"></i>
                     <span>Auto Check</span>
-                </div>
-                <div class="sidebar-item flex items-center gap-3 px-6 py-3 cursor-pointer" onclick="showSection('sales')" data-section="sales">
+                </button>
+                <button type="button" class="sidebar-item w-full text-left flex items-center gap-3 px-6 py-3 cursor-pointer" onclick="showSection('sales')" data-section="sales">
                     <i class="fas fa-history w-5"></i>
                     <span>Lịch sử bán</span>
-                </div>
-                <div class="sidebar-item flex items-center gap-3 px-6 py-3 cursor-pointer" onclick="showSection('users')" data-section="users">
+                </button>
+                <button type="button" class="sidebar-item w-full text-left flex items-center gap-3 px-6 py-3 cursor-pointer" onclick="showSection('users')" data-section="users">
                     <i class="fas fa-users w-5"></i>
                     <span>Users</span>
-                </div>
-                <div class="sidebar-item flex items-center gap-3 px-6 py-3 cursor-pointer" onclick="showSection('broadcast')" data-section="broadcast">
+                </button>
+                <button type="button" class="sidebar-item w-full text-left flex items-center gap-3 px-6 py-3 cursor-pointer" onclick="showSection('broadcast')" data-section="broadcast">
                     <i class="fas fa-bullhorn w-5"></i>
                     <span>Broadcast</span>
-                </div>
-                <div class="sidebar-item flex items-center gap-3 px-6 py-3 cursor-pointer" onclick="showSection('settings')" data-section="settings">
+                </button>
+                <button type="button" class="sidebar-item w-full text-left flex items-center gap-3 px-6 py-3 cursor-pointer" onclick="showSection('settings')" data-section="settings">
                     <i class="fas fa-cog w-5"></i>
                     <span>Cài đặt</span>
-                </div>
+                </button>
             </nav>
             
             <div class="absolute bottom-0 left-0 right-0 p-4 space-y-3">
@@ -991,38 +1012,6 @@
         function updateTime() {
             const now = new Date();
             document.getElementById('currentTime').textContent = now.toLocaleString('vi-VN');
-        }
-
-        // Section Navigation - Test version
-        function showSection(sectionId) {
-            // First verify sections exist
-            console.log('showSection called with:', sectionId);
-            var section = document.getElementById(sectionId);
-            console.log('Found section:', section);
-            
-            if (!section) {
-                alert('Section not found: ' + sectionId);
-                return;
-            }
-            
-            // Hide all sections
-            var sections = document.getElementsByClassName('section');
-            for (var i = 0; i < sections.length; i++) {
-                sections[i].style.display = 'none';
-            }
-
-            // Show selected section
-            section.style.display = 'block';
-
-            // Update sidebar
-            var items = document.getElementsByClassName('sidebar-item');
-            for (var i = 0; i < items.length; i++) {
-                items[i].classList.remove('active');
-            }
-            var activeLink = document.querySelector('.sidebar-item[data-section="' + sectionId + '"]');
-            if (activeLink) {
-                activeLink.classList.add('active');
-            }
         }
 
         // Modal Functions
