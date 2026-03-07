@@ -27,6 +27,11 @@
         .glass { background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); }
         .card-hover { transition: all 0.3s ease; }
         .card-hover:hover { transform: translateY(-5px); box-shadow: 0 20px 40px rgba(0,0,0,0.1); }
+        .product-card.drag-over, .category-card.drag-over {
+            border: 2px dashed #3B82F6 !important;
+            transform: scale(1.02);
+            background: #EFF6FF !important;
+        }
         .sidebar-item { transition: all 0.2s ease; }
         .sidebar-item:hover { background: rgba(255,255,255,0.1); }
         .sidebar-item.active { background: rgba(255,255,255,0.2); border-left: 3px solid #fff; }
@@ -1115,44 +1120,77 @@
         // Category drag and drop
         function initCategoryDragAndDrop() {
             const grid = document.getElementById('categoriesGrid');
-            let draggedItem = null;
 
-            grid.addEventListener('dragstart', function(e) {
-                if (e.target.classList.contains('category-card')) {
-                    draggedItem = e.target;
-                    e.target.classList.add('opacity-50');
-                }
-            });
+            grid.querySelectorAll('.category-card').forEach(card => {
+                card.draggable = true;
 
-            grid.addEventListener('dragend', function(e) {
-                if (e.target.classList.contains('category-card')) {
-                    e.target.classList.remove('opacity-50');
-                    saveCategoryOrder();
-                }
-            });
+                card.addEventListener('dragstart', function(e) {
+                    this.classList.add('opacity-50');
+                    this.dataset.dragStartIndex = [...grid.children].indexOf(this);
+                    e.dataTransfer.effectAllowed = 'move';
+                });
 
-            grid.addEventListener('dragover', function(e) {
-                e.preventDefault();
-                const afterElement = getDragAfterElement(grid, e.clientY, e.clientX);
-                if (draggedItem) {
-                    if (afterElement == null) {
-                        grid.appendChild(draggedItem);
-                    } else {
-                        grid.insertBefore(draggedItem, afterElement);
+                card.addEventListener('dragend', function(e) {
+                    this.classList.remove('opacity-50');
+                    grid.querySelectorAll('.category-card').forEach(c => c.classList.remove('drag-over'));
+                });
+
+                card.addEventListener('dragover', function(e) {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                });
+
+                card.addEventListener('dragenter', function(e) {
+                    e.preventDefault();
+                    if (this !== e.target.closest('.category-card')) return;
+                    this.classList.add('drag-over');
+                });
+
+                card.addEventListener('dragleave', function(e) {
+                    this.classList.remove('drag-over');
+                });
+
+                card.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    this.classList.remove('drag-over');
+
+                    const draggedItem = grid.querySelector('.opacity-50');
+                    if (draggedItem && this !== draggedItem) {
+                        const allCards = [...grid.children];
+                        const fromIndex = allCards.indexOf(draggedItem);
+                        const toIndex = allCards.indexOf(this);
+
+                        if (fromIndex < toIndex) {
+                            this.parentNode.insertBefore(draggedItem, this.nextSibling);
+                        } else {
+                            this.parentNode.insertBefore(draggedItem, this);
+                        }
+
+                        saveCategoryOrder();
                     }
-                }
+                });
             });
         }
 
+        let categorySaveTimeout = null;
         async function saveCategoryOrder() {
-            const cards = document.querySelectorAll('.category-card');
-            const categories = [];
-            cards.forEach((card, index) => {
-                categories.push({
-                    id: parseInt(card.dataset.id),
-                    sort_order: index
+            clearTimeout(categorySaveTimeout);
+            categorySaveTimeout = setTimeout(async () => {
+                const cards = document.querySelectorAll('.category-card');
+                const categories = [];
+                cards.forEach((card, index) => {
+                    categories.push({
+                        id: parseInt(card.dataset.id),
+                        sort_order: index
+                    });
                 });
-            });
+
+                const result = await apiCall('/categories/reorder', 'POST', { categories });
+                if (result && result.success) {
+                    console.log('Đã cập nhật thứ tự danh mục!');
+                }
+            }, 300);
+        }
 
             const result = await apiCall('/categories/reorder', 'POST', { categories });
             if (result && result.success) {
@@ -1290,71 +1328,92 @@
             }
         }
 
-        // Drag and drop functionality
+        // Drag and drop functionality - cải tiến
         function initDragAndDrop() {
             const grid = document.getElementById('productsGrid');
             let draggedItem = null;
+            let dragTimeout = null;
 
-            grid.addEventListener('dragstart', function(e) {
-                if (e.target.classList.contains('product-card')) {
-                    draggedItem = e.target;
-                    e.target.classList.add('opacity-50');
-                }
-            });
+            // Sử dụng event delegation - chỉ gán 1 lần
+            grid.querySelectorAll('.product-card').forEach(card => {
+                card.draggable = true;
 
-            grid.addEventListener('dragend', function(e) {
-                if (e.target.classList.contains('product-card')) {
-                    e.target.classList.remove('opacity-50');
-                    saveProductOrder();
-                }
-            });
+                card.addEventListener('dragstart', function(e) {
+                    draggedItem = this;
+                    this.classList.add('opacity-50');
+                    // Đánh dấu vị trí ban đầu
+                    this.dataset.dragStartIndex = [...grid.children].indexOf(this);
+                    e.dataTransfer.effectAllowed = 'move';
+                });
 
-            grid.addEventListener('dragover', function(e) {
-                e.preventDefault();
-                const afterElement = getDragAfterElement(grid, e.clientY, e.clientX);
-                if (draggedItem) {
-                    if (afterElement == null) {
-                        grid.appendChild(draggedItem);
-                    } else {
-                        grid.insertBefore(draggedItem, afterElement);
+                card.addEventListener('dragend', function(e) {
+                    this.classList.remove('opacity-50');
+                    // Xóa tất cả các class highlight
+                    grid.querySelectorAll('.product-card').forEach(c => c.classList.remove('drag-over'));
+                    draggedItem = null;
+                });
+
+                card.addEventListener('dragover', function(e) {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                });
+
+                card.addEventListener('dragenter', function(e) {
+                    e.preventDefault();
+                    if (this !== draggedItem) {
+                        this.classList.add('drag-over');
                     }
-                }
-            });
-        }
+                });
 
-        function getDragAfterElement(container, y, x) {
-            const draggableElements = [...container.querySelectorAll('.product-card:not(.opacity-50)')];
+                card.addEventListener('dragleave', function(e) {
+                    this.classList.remove('drag-over');
+                });
 
-            return draggableElements.reduce((closest, child) => {
-                const box = child.getBoundingClientRect();
-                const offsetX = x - box.left - box.width / 2;
-                const offsetY = y - box.top - box.height / 2;
-                const distance = Math.abs(offsetX) + Math.abs(offsetY);
-                if (distance < closest.distance) {
-                    return { offset: distance, element: child };
-                } else {
-                    return closest;
-                }
-            }, { distance: Number.MAX_VALUE }).element;
-        }
+                card.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    this.classList.remove('drag-over');
 
-        async function saveProductOrder() {
-            const cards = document.querySelectorAll('.product-card');
-            const products = [];
-            cards.forEach((card, index) => {
-                products.push({
-                    id: parseInt(card.dataset.id),
-                    sort_order: index
+                    if (draggedItem && this !== draggedItem) {
+                        const allCards = [...grid.children];
+                        const fromIndex = allCards.indexOf(draggedItem);
+                        const toIndex = allCards.indexOf(this);
+
+                        // Di chuyển element
+                        if (fromIndex < toIndex) {
+                            this.parentNode.insertBefore(draggedItem, this.nextSibling);
+                        } else {
+                            this.parentNode.insertBefore(draggedItem, this);
+                        }
+
+                        // Lưu order ngay lập tức
+                        saveProductOrder();
+                    }
                 });
             });
+        }
 
-            const result = await apiCall('/products/reorder', 'POST', { products });
-            if (result && result.success) {
-                showToast('Đã cập nhật thứ tự!');
-                loadProducts();
-            } else {
-                showToast('Lỗi khi lưu thứ tự!', true);
-            }
+        // Debounce để tránh lag
+        let saveTimeout = null;
+        async function saveProductOrder() {
+            // Debounce: chỉ save sau 300ms
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(async () => {
+                const cards = document.querySelectorAll('.product-card');
+                const products = [];
+                cards.forEach((card, index) => {
+                    products.push({
+                        id: parseInt(card.dataset.id),
+                        sort_order: index
+                    });
+                });
+
+                const result = await apiCall('/products/reorder', 'POST', { products });
+                if (result && result.success) {
+                    console.log('Đã cập nhật thứ tự!');
+                } else {
+                    console.error('Lỗi khi lưu thứ tự!');
+                }
+            }, 300);
         }
 
         async function loadProductOptions(selectId) {
