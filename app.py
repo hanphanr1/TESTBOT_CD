@@ -411,17 +411,17 @@ def ensure_columns():
         db.commit()
 
 def auto_generate_sort_order():
-    """Tự động gán sort_order cho tất cả sản phẩm/danh mục khi restore database"""
+    """Tự động gán sort_order khi restore database"""
     with get_db() as db:
         cur = db.cursor()
 
-        # Lấy tất cả categories và gán sort_order = 0,1,2,3...
+        # Categories: sort_order = 0,1,2,3...
         cur.execute("SELECT id FROM categories WHERE is_active = 1 ORDER BY id")
         categories = cur.fetchall()
         for idx, cat in enumerate(categories):
             cur.execute("UPDATE categories SET sort_order = ? WHERE id = ?", (idx, cat[0]))
 
-        # Lấy tất cả products và gán sort_order = 0,1,2,3... theo từng category
+        # Products: mỗi category có sort_order riêng 0,1,2,3...
         cur.execute("SELECT id, category_id FROM products ORDER BY category_id, id")
         products = cur.fetchall()
 
@@ -432,11 +432,13 @@ def auto_generate_sort_order():
             if category_id != current_category:
                 current_category = category_id
                 order_in_category = 0
+            
+            # Chỉ dùng index đơn giản trong category
             cur.execute("UPDATE products SET sort_order = ? WHERE id = ?", (order_in_category, product_id))
             order_in_category += 1
 
         db.commit()
-        logger.info("✅ Auto-generated sort_order (simple numbers)")
+        logger.info("✅ Auto-generated sort_order")
 
 def get_categories():
     ensure_columns()  # Đảm bảo cột tồn tại
@@ -2887,23 +2889,20 @@ async def api_reorder_products(data: dict, request: Request, auth: bool = Depend
             cur.execute(f"SELECT id, category_id FROM products WHERE id IN ({placeholders})", product_ids)
             product_cat_map = {row[0]: row[1] for row in cur.fetchall()}
 
-            # Với mỗi product, lấy sort_order của category rồi cộng thêm index
+            # Với mỗi product, tính sort_order theo vị trí trong category (0,1,2,3...)
+            # Nhóm products theo category
+            by_category = {}
             for idx, item in enumerate(products):
                 product_id = item.get("id")
                 cat_id = product_cat_map.get(product_id)
-                
-                # Lấy sort_order của category
-                if cat_id:
-                    cur.execute("SELECT COALESCE(sort_order, 0) FROM categories WHERE id = ?", (cat_id,))
-                    cat_result = cur.fetchone()
-                    cat_order = cat_result[0] if cat_result else 0
-                else:
-                    cat_order = 0
-                
-                # sort_order = category_order * 1000 + index
-                new_sort = cat_order * 1000 + idx
-                
-                cur.execute("UPDATE products SET sort_order = ? WHERE id = ?", (new_sort, product_id))
+                if cat_id not in by_category:
+                    by_category[cat_id] = []
+                by_category[cat_id].append(product_id)
+
+            # Cập nhật sort_order = index trong category (0,1,2,3...)
+            for cat_id, prod_ids in by_category.items():
+                for idx, pid in enumerate(prod_ids):
+                    cur.execute("UPDATE products SET sort_order = ? WHERE id = ?", (idx, pid))
 
             db.commit()
         return {"success": True}
