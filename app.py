@@ -2874,7 +2874,7 @@ async def api_toggle_product(product_id: int, request: Request, auth: bool = Dep
 
 @app.post("/api/admin/products/reorder")
 async def api_reorder_products(data: dict, request: Request, auth: bool = Depends(require_admin)):
-    """Cập nhật thứ tự sản phẩm - dùng số đơn giản 0,1,2,3..."""
+    """Cập nhật thứ tự sản phẩm - tính index riêng cho mỗi category"""
     try:
         products = data.get("products", [])
         if not products:
@@ -2883,14 +2883,17 @@ async def api_reorder_products(data: dict, request: Request, auth: bool = Depend
         with get_db() as db:
             cur = db.cursor()
 
-            # Lấy category_id của từng product
+            # Lấy category_id của từng product từ database
             product_ids = [p.get("id") for p in products]
+            if not product_ids:
+                return {"success": True}
+                
             placeholders = ','.join('?' * len(product_ids))
             cur.execute(f"SELECT id, category_id FROM products WHERE id IN ({placeholders})", product_ids)
             product_cat_map = {row[0]: row[1] for row in cur.fetchall()}
 
-            # Với mỗi product, tính sort_order theo vị trí trong category (0,1,2,3...)
-            # Nhóm products theo category
+            # Nhóm products theo category_id từ database
+            # products gửi lên có thể trộn lẫn, cần tách ra
             by_category = {}
             for idx, item in enumerate(products):
                 product_id = item.get("id")
