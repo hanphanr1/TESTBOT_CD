@@ -1113,54 +1113,98 @@
         }
 
         // Category drag and drop
+        // Category Drag and Drop - improved
         function initCategoryDragAndDrop() {
             const grid = document.getElementById('categoriesGrid');
+            if (!grid) return;
+
             let draggedItem = null;
 
-            grid.addEventListener('dragstart', function(e) {
-                if (e.target.classList.contains('category-card')) {
-                    draggedItem = e.target;
-                    e.target.classList.add('opacity-50');
-                }
-            });
+            grid.querySelectorAll('.category-card').forEach(card => {
+                card.draggable = true;
 
-            grid.addEventListener('dragend', function(e) {
-                if (e.target.classList.contains('category-card')) {
-                    e.target.classList.remove('opacity-50');
-                    saveCategoryOrder();
-                }
-            });
+                card.addEventListener('dragstart', function(e) {
+                    draggedItem = this;
+                    setTimeout(() => {
+                        this.classList.add('opacity-50');
+                    }, 0);
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', this.dataset.id);
+                });
 
-            grid.addEventListener('dragover', function(e) {
-                e.preventDefault();
-                const afterElement = getDragAfterElement(grid, e.clientY, e.clientX);
-                if (draggedItem) {
-                    if (afterElement == null) {
-                        grid.appendChild(draggedItem);
-                    } else {
-                        grid.insertBefore(draggedItem, afterElement);
+                card.addEventListener('dragend', function(e) {
+                    this.classList.remove('opacity-50');
+                    grid.querySelectorAll('.category-card').forEach(c => c.classList.remove('drag-over'));
+                    draggedItem = null;
+                });
+
+                card.addEventListener('dragover', function(e) {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                });
+
+                card.addEventListener('dragenter', function(e) {
+                    e.preventDefault();
+                    if (this !== draggedItem) {
+                        this.classList.add('drag-over');
                     }
-                }
+                });
+
+                card.addEventListener('dragleave', function(e) {
+                    if (!this.contains(e.relatedTarget)) {
+                        this.classList.remove('drag-over');
+                    }
+                });
+
+                card.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    this.classList.remove('drag-over');
+
+                    if (draggedItem && this !== draggedItem) {
+                        const allCards = [...grid.children];
+                        const fromIndex = allCards.indexOf(draggedItem);
+                        const toIndex = allCards.indexOf(this);
+
+                        if (fromIndex !== -1 && toIndex !== -1) {
+                            if (fromIndex < toIndex) {
+                                this.parentNode.insertBefore(draggedItem, this.nextSibling);
+                            } else {
+                                this.parentNode.insertBefore(draggedItem, this);
+                            }
+                            saveCategoryOrder();
+                        }
+                    }
+                });
             });
         }
 
+        let categorySaveTimeout = null;
         async function saveCategoryOrder() {
-            const cards = document.querySelectorAll('.category-card');
-            const categories = [];
-            cards.forEach((card, index) => {
-                categories.push({
-                    id: parseInt(card.dataset.id),
-                    sort_order: index
+            clearTimeout(categorySaveTimeout);
+            categorySaveTimeout = setTimeout(async () => {
+                const cards = document.querySelectorAll('.category-card');
+                const categories = [];
+                cards.forEach((card, index) => {
+                    categories.push({
+                        id: parseInt(card.dataset.id),
+                        sort_order: index
+                    });
                 });
-            });
 
-            const result = await apiCall('/categories/reorder', 'POST', { categories });
-            if (result && result.success) {
-                showToast('Đã cập nhật thứ tự danh mục!');
-                loadCategories();
-            } else {
-                showToast('Lỗi khi lưu thứ tự!', true);
-            }
+                try {
+                    const response = await fetch(API_BASE + '/categories/reorder', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ categories: categories })
+                    });
+                    const result = await response.json();
+                    if (result && result.success) {
+                        console.log('Đã cập nhật thứ tự danh mục!');
+                    }
+                } catch (err) {
+                    console.error('Lỗi khi lưu thứ tự danh mục:', err);
+                }
+            }, 300);
         }
 
         async function loadCategoryOptions(selectId) {
@@ -1292,71 +1336,105 @@
             }
         }
 
-        // Drag and drop functionality
+        // Drag and Drop - improved version
         function initDragAndDrop() {
             const grid = document.getElementById('productsGrid');
+            if (!grid) return;
+
             let draggedItem = null;
+            let dragStarted = false;
 
-            grid.addEventListener('dragstart', function(e) {
-                if (e.target.classList.contains('product-card')) {
-                    draggedItem = e.target;
-                    e.target.classList.add('opacity-50');
-                }
-            });
+            grid.querySelectorAll('.product-card').forEach(card => {
+                card.draggable = true;
 
-            grid.addEventListener('dragend', function(e) {
-                if (e.target.classList.contains('product-card')) {
-                    e.target.classList.remove('opacity-50');
-                    saveProductOrder();
-                }
-            });
+                card.addEventListener('dragstart', function(e) {
+                    draggedItem = this;
+                    dragStarted = true;
+                    setTimeout(() => {
+                        this.classList.add('opacity-50');
+                    }, 0);
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', this.dataset.id);
+                });
 
-            grid.addEventListener('dragover', function(e) {
-                e.preventDefault();
-                const afterElement = getDragAfterElement(grid, e.clientY, e.clientX);
-                if (draggedItem) {
-                    if (afterElement == null) {
-                        grid.appendChild(draggedItem);
-                    } else {
-                        grid.insertBefore(draggedItem, afterElement);
+                card.addEventListener('dragend', function(e) {
+                    this.classList.remove('opacity-50');
+                    grid.querySelectorAll('.product-card').forEach(c => c.classList.remove('drag-over'));
+                    draggedItem = null;
+                    dragStarted = false;
+                });
+
+                card.addEventListener('dragover', function(e) {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                });
+
+                card.addEventListener('dragenter', function(e) {
+                    e.preventDefault();
+                    if (this !== draggedItem) {
+                        this.classList.add('drag-over');
                     }
-                }
-            });
-        }
+                });
 
-        function getDragAfterElement(container, y, x) {
-            const draggableElements = [...container.querySelectorAll('.product-card:not(.opacity-50)')];
+                card.addEventListener('dragleave', function(e) {
+                    if (!this.contains(e.relatedTarget)) {
+                        this.classList.remove('drag-over');
+                    }
+                });
 
-            return draggableElements.reduce((closest, child) => {
-                const box = child.getBoundingClientRect();
-                const offsetX = x - box.left - box.width / 2;
-                const offsetY = y - box.top - box.height / 2;
-                const distance = Math.abs(offsetX) + Math.abs(offsetY);
-                if (distance < closest.distance) {
-                    return { offset: distance, element: child };
-                } else {
-                    return closest;
-                }
-            }, { distance: Number.MAX_VALUE }).element;
-        }
+                card.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    this.classList.remove('drag-over');
 
-        async function saveProductOrder() {
-            const cards = document.querySelectorAll('.product-card');
-            const products = [];
-            cards.forEach((card, index) => {
-                products.push({
-                    id: parseInt(card.dataset.id),
-                    sort_order: index
+                    if (draggedItem && this !== draggedItem) {
+                        const allCards = [...grid.children];
+                        const fromIndex = allCards.indexOf(draggedItem);
+                        const toIndex = allCards.indexOf(this);
+
+                        if (fromIndex !== -1 && toIndex !== -1) {
+                            // Di chuyển element
+                            if (fromIndex < toIndex) {
+                                this.parentNode.insertBefore(draggedItem, this.nextSibling);
+                            } else {
+                                this.parentNode.insertBefore(draggedItem, this);
+                            }
+
+                            // Lưu order ngay sau khi drop
+                            saveProductOrder();
+                        }
+                    }
                 });
             });
+        }
 
-            const result = await apiCall('/products/reorder', 'POST', { products });
-            if (result && result.success) {
-                showToast('Đã cập nhật thứ tự!');
-                loadProducts();
-            } else {
-                showToast('Lỗi khi lưu thứ tự!', true);
-            }
+        let saveTimeout = null;
+        async function saveProductOrder() {
+            // Debounce để tránh gọi API nhiều lần
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(async () => {
+                const cards = document.querySelectorAll('.product-card');
+                const products = [];
+                cards.forEach((card, index) => {
+                    products.push({
+                        id: parseInt(card.dataset.id),
+                        sort_order: index
+                    });
+                });
+
+                try {
+                    const response = await fetch(API_BASE + '/products/reorder', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ products: products })
+                    });
+                    const result = await response.json();
+                    if (result && result.success) {
+                        console.log('Đã cập nhật thứ tự!');
+                    }
+                } catch (err) {
+                    console.error('Lỗi khi lưu thứ tự:', err);
+                }
+            }, 300);
         }
 
         async function loadProductOptions(selectId) {

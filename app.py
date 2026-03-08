@@ -410,6 +410,34 @@ def ensure_columns():
             pass
         db.commit()
 
+def auto_generate_sort_order():
+    """Tự động gán sort_order cho tất cả sản phẩm/danh mục khi restore database"""
+    with get_db() as db:
+        cur = db.cursor()
+
+        # Lấy tất cả categories và gán sort_order theo thứ tự hiện tại
+        cur.execute("SELECT id FROM categories WHERE is_active = 1 ORDER BY id")
+        categories = cur.fetchall()
+        for idx, cat in enumerate(categories):
+            cur.execute("UPDATE categories SET sort_order = ? WHERE id = ?", (idx * 1000, cat[0]))
+
+        # Lấy tất cả products và gán sort_order theo thứ tự hiện tại trong mỗi category
+        cur.execute("SELECT id, category_id FROM products ORDER BY category_id, id")
+        products = cur.fetchall()
+
+        current_category = None
+        order_in_category = 0
+        for product in products:
+            product_id, category_id = product
+            if category_id != current_category:
+                current_category = category_id
+                order_in_category = 0
+            cur.execute("UPDATE products SET sort_order = ? WHERE id = ?", (order_in_category * 1000, product_id))
+            order_in_category += 1
+
+        db.commit()
+        logger.info("✅ Auto-generated sort_order for categories and products")
+
 def get_categories():
     ensure_columns()  # Đảm bảo cột tồn tại
     with get_db() as db:
@@ -2592,8 +2620,9 @@ async def api_restore_database(request: Request, auth: bool = Depends(require_ad
         with open(DB_PATH, 'wb') as f:
             f.write(contents)
 
-        # Run migrations on restored database
+        # Run migrations and auto-generate sort_order
         run_migrations()
+        auto_generate_sort_order()
 
         logger.info("Database restored successfully")
         return {"success": True, "message": "Database restored successfully. Please restart the bot."}
@@ -2780,13 +2809,23 @@ async def api_reorder_categories(data: dict, request: Request, auth: bool = Depe
     """Cập nhật thứ tự nhiều danh mục cùng lúc"""
     try:
         categories = data.get("categories", [])
+        if not categories:
+            return {"success": True}
+
         with get_db() as db:
             cur = db.cursor()
-            for item in categories:
+
+            # Lấy tất cả categories và cập nhật với khoảng cách lớn
+            cur.execute("SELECT id FROM categories WHERE is_active = 1 ORDER BY id")
+            all_categories = [row[0] for row in cur.fetchall()]
+
+            # Cập nhật với khoảng cách 1000
+            for idx, category_id in enumerate(all_categories):
                 cur.execute(
                     "UPDATE categories SET sort_order = ? WHERE id = ?",
-                    (item.get("sort_order", 0), item.get("id"))
+                    (idx * 1000, category_id)
                 )
+
             db.commit()
         return {"success": True}
     except Exception as e:
@@ -2837,16 +2876,40 @@ async def api_toggle_product(product_id: int, request: Request, auth: bool = Dep
 
 @app.post("/api/admin/products/reorder")
 async def api_reorder_products(data: dict, request: Request, auth: bool = Depends(require_admin)):
-    """Cập nhật thứ tự nhiều sản phẩm cùng lúc"""
+    """Cập nhật thứ tự nhiều sản phẩm cùng lúc - dùng khoảng cách để tránh trùng lặp"""
     try:
         products = data.get("products", [])
+        if not products:
+            return {"success": True}
+
         with get_db() as db:
             cur = db.cursor()
-            for item in products:
-                cur.execute(
-                    "UPDATE products SET sort_order = ? WHERE id = ?",
-                    (item.get("sort_order", 0), item.get("id"))
-                )
+
+            # Lấy category_id của sản phẩm đầu tiên để xử lý đúng
+            first_product_id = products[0].get("id")
+            cur.execute("SELECT category_id FROM products WHERE id = ?", (first_product_id,))
+            result = cur.fetchone()
+            if result:
+                category_id = result[0]
+
+                # Lấy tất cả sản phẩm trong category đó
+                cur.execute("""
+                    SELECT id FROM products
+                    WHERE category_id = ? OR (category_id IS NULL AND ? IS NULL)
+                    ORDER BY
+                        CASE WHEN category_id IS NULL THEN 1 ELSE 0 END,
+                        id
+                """, (category_id, category_id))
+
+                all_products_in_category = [row[0] for row in cur.fetchall()]
+
+                # Cập nhật sort_order với khoảng cách lớn (1000) để dễ chèn vào giữa
+                for idx, product_id in enumerate(all_products_in_category):
+                    cur.execute(
+                        "UPDATE products SET sort_order = ? WHERE id = ?",
+                        (idx * 1000, product_id)
+                    )
+
             db.commit()
         return {"success": True}
     except Exception as e:
