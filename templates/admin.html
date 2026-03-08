@@ -1307,7 +1307,7 @@
                                 <div>
                                     <span class="text-xs px-2 py-1 bg-indigo-100 text-indigo-600 rounded-full">${p.category_name || 'Chưa phân loại'}</span>
                                     <h4 class="font-bold text-lg mt-2">${p.name}</h4>
-                                    <span class="text-xs text-gray-400">Thứ tự: ${p.sort_order || 0}</span>
+                                    <span class="text-xs text-gray-400 sort-order-text">Thứ tự: ${p.sort_order || 0}</span>
                                 </div>
                                 <span class="text-xl font-bold text-green-600">${formatCurrency(p.price)}</span>
                             </div>
@@ -1336,23 +1336,19 @@
             }
         }
 
-        // Drag and Drop - improved version
+        // Drag and Drop - simple and reliable version
         function initDragAndDrop() {
             const grid = document.getElementById('productsGrid');
             if (!grid) return;
 
             let draggedItem = null;
-            let dragStarted = false;
 
             grid.querySelectorAll('.product-card').forEach(card => {
                 card.draggable = true;
 
                 card.addEventListener('dragstart', function(e) {
                     draggedItem = this;
-                    dragStarted = true;
-                    setTimeout(() => {
-                        this.classList.add('opacity-50');
-                    }, 0);
+                    this.classList.add('opacity-50');
                     e.dataTransfer.effectAllowed = 'move';
                     e.dataTransfer.setData('text/plain', this.dataset.id);
                 });
@@ -1361,7 +1357,6 @@
                     this.classList.remove('opacity-50');
                     grid.querySelectorAll('.product-card').forEach(c => c.classList.remove('drag-over'));
                     draggedItem = null;
-                    dragStarted = false;
                 });
 
                 card.addEventListener('dragover', function(e) {
@@ -1369,37 +1364,25 @@
                     e.dataTransfer.dropEffect = 'move';
                 });
 
-                card.addEventListener('dragenter', function(e) {
-                    e.preventDefault();
-                    if (this !== draggedItem) {
-                        this.classList.add('drag-over');
-                    }
-                });
-
-                card.addEventListener('dragleave', function(e) {
-                    if (!this.contains(e.relatedTarget)) {
-                        this.classList.remove('drag-over');
-                    }
-                });
-
                 card.addEventListener('drop', function(e) {
                     e.preventDefault();
                     this.classList.remove('drag-over');
 
                     if (draggedItem && this !== draggedItem) {
+                        // Lấy vị trí hiện tại của dragged và target
                         const allCards = [...grid.children];
                         const fromIndex = allCards.indexOf(draggedItem);
                         const toIndex = allCards.indexOf(this);
 
-                        if (fromIndex !== -1 && toIndex !== -1) {
-                            // Di chuyển element
+                        if (fromIndex !== -1 && toIndex !== -1 && fromIndex !== toIndex) {
+                            // Di chuyển card đến vị trí mới
                             if (fromIndex < toIndex) {
-                                this.parentNode.insertBefore(draggedItem, this.nextSibling);
+                                this.after(draggedItem);
                             } else {
-                                this.parentNode.insertBefore(draggedItem, this);
+                                this.before(draggedItem);
                             }
 
-                            // Lưu order ngay sau khi drop
+                            // Gọi API lưu order ngay
                             saveProductOrder();
                         }
                     }
@@ -1431,6 +1414,8 @@
                     const result = await response.json();
                     if (result && result.success) {
                         console.log('Đã cập nhật thứ tự!');
+                        // Reload lại products để hiển thị đúng số thứ tự từ database
+                        loadProducts();
                     }
                 } catch (err) {
                     console.error('Lỗi khi lưu thứ tự:', err);
