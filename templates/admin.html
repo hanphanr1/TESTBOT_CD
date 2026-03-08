@@ -1233,11 +1233,13 @@
         }
 
         async function deleteCategory(id) {
-            if (confirm('Xác nhận xóa danh mục này?')) {
+            if (confirm('⚠️ XÁC NHẬN XÓA VĨNH VIỄN?\n\nTất cả sản phẩm trong danh mục cũng sẽ bị xóa!\nHành động này không thể hoàn tác.')) {
                 const result = await apiCall(`/categories/${id}`, 'DELETE');
                 if (result && result.success) {
-                    showToast('Đã xóa danh mục!');
+                    showToast('Đã xóa vĩnh viễn!');
                     loadCategories();
+                } else {
+                    showToast('Lỗi khi xóa!', true);
                 }
             }
         }
@@ -1447,11 +1449,13 @@
         }
 
         async function deleteProduct(id) {
-            if (confirm('Xác nhận xóa sản phẩm này?')) {
+            if (confirm('⚠️ XÁC NHẬN XÓA VĨNH VIỄN?\n\nSản phẩm sẽ bị xóa khỏi database!\nHành động này không thể hoàn tác.')) {
                 const result = await apiCall(`/products/${id}`, 'DELETE');
                 if (result && result.success) {
-                    showToast('Đã xóa sản phẩm!');
+                    showToast('Đã xóa vĩnh viễn!');
                     loadProducts();
+                } else {
+                    showToast('Lỗi khi xóa!', true);
                 }
             }
         }

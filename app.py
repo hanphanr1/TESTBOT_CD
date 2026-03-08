@@ -459,9 +459,14 @@ def update_category(category_id: int, name: str, description: str, icon: str, so
         db.commit()
 
 def delete_category(category_id: int):
+    """Xóa vĩnh viễn danh mục khỏi database"""
     with get_db() as db:
         cur = db.cursor()
-        cur.execute("UPDATE categories SET is_active=0 WHERE id=?", (category_id,))
+        # Xóa các sản phẩm trong danh mục trước
+        cur.execute("DELETE FROM stocks WHERE product_id IN (SELECT id FROM products WHERE category_id=?)", (category_id,))
+        cur.execute("DELETE FROM products WHERE category_id=?", (category_id,))
+        # Xóa danh mục
+        cur.execute("DELETE FROM categories WHERE id=?", (category_id,))
         db.commit()
 
 # ================= PRODUCT FUNCTIONS =================
@@ -544,12 +549,17 @@ def update_product(product_id: int, category_id: int = None, name: str = None, p
             db.commit()
 
 def delete_product(product_id: int):
+    """Xóa vĩnh viễn sản phẩm khỏi database"""
     with get_db() as db:
         cur = db.cursor()
-        cur.execute("UPDATE products SET is_active=0 WHERE id=?", (product_id,))
+        # Xóa các stock liên quan trước
+        cur.execute("DELETE FROM stocks WHERE product_id=?", (product_id,))
+        # Xóa sản phẩm
+        cur.execute("DELETE FROM products WHERE id=?", (product_id,))
         db.commit()
 
 def toggle_product(product_id: int):
+    """Tạm dừng/bật lại sản phẩm"""
     with get_db() as db:
         cur = db.cursor()
         cur.execute("UPDATE products SET is_active = NOT is_active WHERE id=?", (product_id,))
