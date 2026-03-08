@@ -517,7 +517,7 @@ def get_products(category_id: int = None, active_only: bool = True):
             query += " AND p.category_id = ?"
             params.append(category_id)
         
-        query += " ORDER BY c.sort_order, p.sort_order, c.name, p.name"
+        query += " ORDER BY c.sort_order * 10000 + p.sort_order, c.name, p.name"
         cur.execute(query, params)
         return [dict(row) for row in cur.fetchall()]
 
@@ -2872,7 +2872,7 @@ async def api_toggle_product(product_id: int, request: Request, auth: bool = Dep
 
 @app.post("/api/admin/products/reorder")
 async def api_reorder_products(data: dict, request: Request, auth: bool = Depends(require_admin)):
-    """Cập nhật thứ tự nhiều sản phẩm cùng lúc - theo đúng vị trí thực tế"""
+    """Cập nhật thứ tự nhiều sản phẩm cùng lúc - tính theo vị trí thực trong grid"""
     try:
         products = data.get("products", [])
         if not products:
@@ -2881,21 +2881,28 @@ async def api_reorder_products(data: dict, request: Request, auth: bool = Depend
         with get_db() as db:
             cur = db.cursor()
 
-            # Nhóm products theo category_id
-            products_by_category = {}
-            for item in products:
-                cat_id = item.get("category_id") or None
-                if cat_id not in products_by_category:
-                    products_by_category[cat_id] = []
-                products_by_category[cat_id].append(item)
+            # Lấy sort_order của từng category
+            cur.execute("SELECT id, COALESCE(sort_order, 0) FROM categories WHERE is_active = 1")
+            category_orders = {row[0]: row[1] for row in cur.fetchall()}
+            # Category không xác định = 0
+            category_orders[None] = 0
 
-            # Với mỗi category, cập nhật sort_order theo đúng thứ tự index
-            for cat_id, prods in products_by_category.items():
-                for idx, item in enumerate(prods):
-                    cur.execute(
-                        "UPDATE products SET sort_order = ? WHERE id = ?",
-                        (idx, item.get("id"))
-                    )
+            # Với mỗi product, tính sort_order = category_sort * 10000 + index_trong_grid
+            for idx, item in enumerate(products):
+                product_id = item.get("id")
+                cat_id = item.get("category_id")
+                if cat_id is None:
+                    cat_order = 0
+                else:
+                    cat_order = category_orders.get(cat_id, 0)
+                
+                # sort_order = category_order * 10000 + vị trí trong grid
+                new_sort_order = cat_order * 10000 + idx
+                
+                cur.execute(
+                    "UPDATE products SET sort_order = ? WHERE id = ?",
+                    (new_sort_order, product_id)
+                )
 
             db.commit()
         return {"success": True}
