@@ -501,15 +501,9 @@ def get_product(product_id: int):
         row = cur.fetchone()
         return dict(row) if row else None
 
-def create_product(category_id: int, name: str, price: int, description: str = "", contact_seller: bool = False, sort_order: int = None):
+def create_product(category_id: int, name: str, price: int, description: str = "", contact_seller: bool = False, sort_order: int = 0):
     with get_db() as db:
         cur = db.cursor()
-        # Tự động gán sort_order nếu không được cung cấp
-        if sort_order is None:
-            cur.execute("SELECT COALESCE(MAX(sort_order), -1) + 1 as next_order FROM products WHERE category_id = ?", (category_id,))
-            result = cur.fetchone()
-            sort_order = result['next_order'] if result else 0
-
         cur.execute(
             "INSERT INTO products (category_id, name, price, description, contact_seller, sort_order) VALUES (?, ?, ?, ?, ?, ?)",
             (category_id, name, price, description, 1 if contact_seller else 0, sort_order)
