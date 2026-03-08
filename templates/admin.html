@@ -19,51 +19,6 @@
                 }
             }
         }
-
-        // Section Navigation
-        function showSection(sectionId) {
-            // Hide all sections
-            var sections = document.getElementsByClassName('section');
-            for (var i = 0; i < sections.length; i++) {
-                sections[i].style.display = 'none';
-                sections[i].classList.add('hidden');
-            }
-            // Show selected section
-            var section = document.getElementById(sectionId);
-            if (section) {
-                section.style.display = 'block';
-                section.classList.remove('hidden');
-            }
-            // Update sidebar - find link with matching href
-            var items = document.querySelectorAll('.sidebar-item');
-            for (var i = 0; i < items.length; i++) {
-                items[i].classList.remove('active');
-            }
-            // Find link with matching href
-            var current = document.querySelector('.sidebar-item[href="#' + sectionId + '"]');
-            if (current) {
-                current.classList.add('active');
-            }
-        }
-
-        // Initialize dashboard on load
-        window.addEventListener('load', function() {
-            showSection('dashboard');
-        });
-
-        // Handle navigation clicks
-        document.addEventListener('DOMContentLoaded', function() {
-            document.querySelectorAll('.sidebar-item').forEach(function(item) {
-                item.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    var href = this.getAttribute('href');
-                    if (href && href.startsWith('#')) {
-                        var sectionId = href.substring(1);
-                        showSection(sectionId);
-                    }
-                });
-            });
-        });
     </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -80,7 +35,6 @@
         .sidebar-item { transition: all 0.2s ease; }
         .sidebar-item:hover { background: rgba(255,255,255,0.1); }
         .sidebar-item.active { background: rgba(255,255,255,0.2); border-left: 3px solid #fff; }
-        .hidden { display: none !important; }
         .pulse-dot { animation: pulse 2s infinite; }
         @keyframes pulse {
             0%, 100% { opacity: 1; }
@@ -103,47 +57,47 @@
             </div>
             
             <nav class="mt-6">
-                <a href="#dashboard" class="sidebar-item active flex items-center gap-3 px-6 py-3 cursor-pointer">
+                <a href="#dashboard" class="sidebar-item active flex items-center gap-3 px-6 py-3 cursor-pointer" onclick="showSection('dashboard')">
                     <i class="fas fa-chart-pie w-5"></i>
                     <span>Dashboard</span>
                 </a>
-                <a href="#categories" class="sidebar-item flex items-center gap-3 px-6 py-3 cursor-pointer">
+                <a href="#categories" class="sidebar-item flex items-center gap-3 px-6 py-3 cursor-pointer" onclick="showSection('categories')">
                     <i class="fas fa-folder w-5"></i>
                     <span>Categories</span>
                 </a>
-                <a href="#products" class="sidebar-item flex items-center gap-3 px-6 py-3 cursor-pointer">
+                <a href="#products" class="sidebar-item flex items-center gap-3 px-6 py-3 cursor-pointer" onclick="showSection('products')">
                     <i class="fas fa-box w-5"></i>
                     <span>Sản phẩm</span>
                 </a>
-                <a href="#stock" class="sidebar-item flex items-center gap-3 px-6 py-3 cursor-pointer">
+                <a href="#stock" class="sidebar-item flex items-center gap-3 px-6 py-3 cursor-pointer" onclick="showSection('stock')">
                     <i class="fas fa-warehouse w-5"></i>
                     <span>Kho hàng</span>
                 </a>
-                <a href="#orders" class="sidebar-item flex items-center gap-3 px-6 py-3 cursor-pointer">
+                <a href="#orders" class="sidebar-item flex items-center gap-3 px-6 py-3 cursor-pointer" onclick="showSection('orders')">
                     <i class="fas fa-shopping-cart w-5"></i>
                     <span>Đơn hàng</span>
                 </a>
-                <a href="#bank" class="sidebar-item flex items-center gap-3 px-6 py-3 cursor-pointer">
+                <a href="#bank" class="sidebar-item flex items-center gap-3 px-6 py-3 cursor-pointer" onclick="showSection('bank')">
                     <i class="fas fa-university w-5"></i>
                     <span>Cấu hình Bank</span>
                 </a>
-                <a href="#autocheck" class="sidebar-item flex items-center gap-3 px-6 py-3 cursor-pointer">
+                <a href="#autocheck" class="sidebar-item flex items-center gap-3 px-6 py-3 cursor-pointer" onclick="showSection('autocheck')">
                     <i class="fas fa-sync-alt w-5"></i>
                     <span>Auto Check</span>
                 </a>
-                <a href="#sales" class="sidebar-item flex items-center gap-3 px-6 py-3 cursor-pointer">
+                <a href="#sales" class="sidebar-item flex items-center gap-3 px-6 py-3 cursor-pointer" onclick="showSection('sales')">
                     <i class="fas fa-history w-5"></i>
                     <span>Lịch sử bán</span>
                 </a>
-                <a href="#users" class="sidebar-item flex items-center gap-3 px-6 py-3 cursor-pointer">
+                <a href="#users" class="sidebar-item flex items-center gap-3 px-6 py-3 cursor-pointer" onclick="showSection('users')">
                     <i class="fas fa-users w-5"></i>
                     <span>Users</span>
                 </a>
-                <a href="#broadcast" class="sidebar-item flex items-center gap-3 px-6 py-3 cursor-pointer">
+                <a href="#broadcast" class="sidebar-item flex items-center gap-3 px-6 py-3 cursor-pointer" onclick="showSection('broadcast')">
                     <i class="fas fa-bullhorn w-5"></i>
                     <span>Broadcast</span>
                 </a>
-                <a href="#settings" class="sidebar-item flex items-center gap-3 px-6 py-3 cursor-pointer">
+                <a href="#settings" class="sidebar-item flex items-center gap-3 px-6 py-3 cursor-pointer" onclick="showSection('settings')">
                     <i class="fas fa-cog w-5"></i>
                     <span>Cài đặt</span>
                 </a>
@@ -1037,6 +991,15 @@
         function updateTime() {
             const now = new Date();
             document.getElementById('currentTime').textContent = now.toLocaleString('vi-VN');
+        }
+
+        // Section Navigation
+        function showSection(sectionId) {
+            document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
+            document.getElementById(sectionId).classList.remove('hidden');
+            
+            document.querySelectorAll('.sidebar-item').forEach(item => item.classList.remove('active'));
+            document.querySelector(`[href="#${sectionId}"]`).classList.add('active');
         }
 
         // Modal Functions
