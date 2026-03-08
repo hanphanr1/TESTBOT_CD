@@ -2806,7 +2806,7 @@ async def api_delete_category(category_id: int, request: Request, auth: bool = D
 
 @app.post("/api/admin/categories/reorder")
 async def api_reorder_categories(data: dict, request: Request, auth: bool = Depends(require_admin)):
-    """Cập nhật thứ tự nhiều danh mục cùng lúc"""
+    """Cập nhật thứ tự nhiều danh mục cùng lúc - theo đúng vị trí thực tế"""
     try:
         categories = data.get("categories", [])
         if not categories:
@@ -2815,15 +2815,11 @@ async def api_reorder_categories(data: dict, request: Request, auth: bool = Depe
         with get_db() as db:
             cur = db.cursor()
 
-            # Lấy tất cả categories và cập nhật với khoảng cách lớn
-            cur.execute("SELECT id FROM categories WHERE is_active = 1 ORDER BY id")
-            all_categories = [row[0] for row in cur.fetchall()]
-
-            # Cập nhật với khoảng cách 1000
-            for idx, category_id in enumerate(all_categories):
+            # Cập nhật sort_order theo đúng thứ tự index từ frontend
+            for idx, item in enumerate(categories):
                 cur.execute(
                     "UPDATE categories SET sort_order = ? WHERE id = ?",
-                    (idx * 1000, category_id)
+                    (idx, item.get("id"))
                 )
 
             db.commit()
@@ -2876,7 +2872,7 @@ async def api_toggle_product(product_id: int, request: Request, auth: bool = Dep
 
 @app.post("/api/admin/products/reorder")
 async def api_reorder_products(data: dict, request: Request, auth: bool = Depends(require_admin)):
-    """Cập nhật thứ tự nhiều sản phẩm cùng lúc - dùng khoảng cách để tránh trùng lặp"""
+    """Cập nhật thứ tự nhiều sản phẩm cùng lúc - theo đúng vị trí thực tế"""
     try:
         products = data.get("products", [])
         if not products:
@@ -2885,29 +2881,20 @@ async def api_reorder_products(data: dict, request: Request, auth: bool = Depend
         with get_db() as db:
             cur = db.cursor()
 
-            # Lấy category_id của sản phẩm đầu tiên để xử lý đúng
-            first_product_id = products[0].get("id")
-            cur.execute("SELECT category_id FROM products WHERE id = ?", (first_product_id,))
-            result = cur.fetchone()
-            if result:
-                category_id = result[0]
+            # Nhóm products theo category_id
+            products_by_category = {}
+            for item in products:
+                cat_id = item.get("category_id") or None
+                if cat_id not in products_by_category:
+                    products_by_category[cat_id] = []
+                products_by_category[cat_id].append(item)
 
-                # Lấy tất cả sản phẩm trong category đó
-                cur.execute("""
-                    SELECT id FROM products
-                    WHERE category_id = ? OR (category_id IS NULL AND ? IS NULL)
-                    ORDER BY
-                        CASE WHEN category_id IS NULL THEN 1 ELSE 0 END,
-                        id
-                """, (category_id, category_id))
-
-                all_products_in_category = [row[0] for row in cur.fetchall()]
-
-                # Cập nhật sort_order với khoảng cách lớn (1000) để dễ chèn vào giữa
-                for idx, product_id in enumerate(all_products_in_category):
+            # Với mỗi category, cập nhật sort_order theo đúng thứ tự index
+            for cat_id, prods in products_by_category.items():
+                for idx, item in enumerate(prods):
                     cur.execute(
                         "UPDATE products SET sort_order = ? WHERE id = ?",
-                        (idx * 1000, product_id)
+                        (idx, item.get("id"))
                     )
 
             db.commit()

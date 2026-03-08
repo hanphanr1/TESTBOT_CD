@@ -1302,7 +1302,7 @@
                     grid.innerHTML = '<p class="text-gray-400 col-span-3 text-center py-8">Chưa có sản phẩm nào</p>';
                 } else {
                     grid.innerHTML = products.map(p => `
-                        <div class="bg-white rounded-2xl shadow-lg p-6 card-hover cursor-move product-card" draggable="true" data-id="${p.id}" data-sort-order="${p.sort_order || 0}">
+                        <div class="bg-white rounded-2xl shadow-lg p-6 card-hover cursor-move product-card" draggable="true" data-id="${p.id}" data-sort-order="${p.sort_order || 0}" data-category-id="${p.category_id || ''}">
                             <div class="flex justify-between items-start mb-4">
                                 <div>
                                     <span class="text-xs px-2 py-1 bg-indigo-100 text-indigo-600 rounded-full">${p.category_name || 'Chưa phân loại'}</span>
@@ -1417,7 +1417,8 @@
                 cards.forEach((card, index) => {
                     products.push({
                         id: parseInt(card.dataset.id),
-                        sort_order: index
+                        sort_order: index,
+                        category_id: parseInt(card.dataset.categoryId) || null
                     });
                 });
 
