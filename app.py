@@ -476,11 +476,40 @@ def update_category(category_id: int, name: str, description: str, icon: str, so
         cur = db.cursor()
         updates = ["name=?", "description=?", "icon=?"]
         params = [name, description, icon]
-        
+
+        # Lấy sort_order hiện tại
+        cur.execute("SELECT sort_order FROM categories WHERE id = ?", (category_id,))
+        row = cur.fetchone()
+        old_sort_order = row[0] if row else 0
+
         if sort_order is not None:
+            # Khi thay đổi sort_order thủ công, cần tính lại vị trí
             updates.append("sort_order=?")
             params.append(sort_order)
-        
+
+            # Lấy danh sách categories, sắp xếp theo sort_order
+            cur.execute("""
+                SELECT id, sort_order FROM categories 
+                WHERE id != ?
+                ORDER BY sort_order, id
+            """, (category_id,))
+            categories = cur.fetchall()
+
+            # Chèn category này vào đúng vị trí
+            new_order_list = []
+            inserted = False
+            for c in categories:
+                if not inserted and (sort_order < c[1] or (sort_order == c[1] and category_id < c[0])):
+                    new_order_list.append(category_id)
+                    inserted = True
+                new_order_list.append(c[0])
+            if not inserted:
+                new_order_list.append(category_id)
+
+            # Cập nhật lại sort_order cho tất cả
+            for idx, cid in enumerate(new_order_list):
+                cur.execute("UPDATE categories SET sort_order = ? WHERE id = ?", (idx, cid))
+
         params.append(category_id)
         cur.execute(
             f"UPDATE categories SET {', '.join(updates)} WHERE id=?",
@@ -553,6 +582,14 @@ def update_product(product_id: int, category_id: int = None, name: str = None, p
         updates = []
         params = []
 
+        # Lấy category_id hiện tại của sản phẩm
+        cur.execute("SELECT category_id, sort_order FROM products WHERE id = ?", (product_id,))
+        row = cur.fetchone()
+        old_category_id = row[0] if row else None
+        old_sort_order = row[1] if row else 0
+
+        new_category_id = category_id if category_id is not None else old_category_id
+
         if category_id is not None:
             updates.append("category_id=?")
             params.append(category_id)
@@ -569,8 +606,32 @@ def update_product(product_id: int, category_id: int = None, name: str = None, p
             updates.append("contact_seller=?")
             params.append(1 if contact_seller else 0)
         if sort_order is not None:
+            # Khi thay đổi sort_order thủ công, cần tính lại vị trí
             updates.append("sort_order=?")
             params.append(sort_order)
+
+            # Lấy danh sách sản phẩm trong category mới, sắp xếp theo sort_order
+            cur.execute("""
+                SELECT id, sort_order FROM products 
+                WHERE category_id = ? AND id != ?
+                ORDER BY sort_order, id
+            """, (new_category_id, product_id))
+            products = cur.fetchall()
+
+            # Chèn sản phẩm này vào đúng vị trí
+            new_order_list = []
+            inserted = False
+            for p in products:
+                if not inserted and (sort_order < p[1] or (sort_order == p[1] and product_id < p[0])):
+                    new_order_list.append(product_id)
+                    inserted = True
+                new_order_list.append(p[0])
+            if not inserted:
+                new_order_list.append(product_id)
+
+            # Cập nhật lại sort_order cho tất cả
+            for idx, pid in enumerate(new_order_list):
+                cur.execute("UPDATE products SET sort_order = ? WHERE id = ?", (idx, pid))
 
         if updates:
             params.append(product_id)

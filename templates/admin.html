@@ -1200,6 +1200,7 @@
                     const result = await response.json();
                     if (result && result.success) {
                         console.log('Đã cập nhật thứ tự danh mục!');
+                        loadCategories();
                     }
                 } catch (err) {
                     console.error('Lỗi khi lưu thứ tự danh mục:', err);
